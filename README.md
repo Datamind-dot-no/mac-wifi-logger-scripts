@@ -1,5 +1,7 @@
 # Mac Wi-Fi troubleshooter
 
+> **Status: Pre-alpha** — Testing has only just started; the tool and its output are not yet validated or confirmed to be working as intended.
+
 Lightweight, continuous gateway ping, Wi-Fi association sampling, and macOS
 Wi-Fi events on a shared UTC timeline. Run on 2–3 affected office Macs for
 several days, then give the merged CSV to the Wi-Fi infrastructure team.
