@@ -100,21 +100,14 @@ without an interactive password. All installed scripts/config must be
 root-owned and not writable by regular users. From the repository:
 
 ```sh
-sudo mkdir -p /Library/mac-wifi-troubleshooter /Library/Logs/mac-wifi-troubleshooter
-sudo cp -R bin lib launchd config.sh /Library/mac-wifi-troubleshooter/
-sudo chown -R root:wheel /Library/mac-wifi-troubleshooter /Library/Logs/mac-wifi-troubleshooter
-sudo chmod -R go-w /Library/mac-wifi-troubleshooter
-sudo chmod 700 /Library/Logs/mac-wifi-troubleshooter
-# Edit the installed config, not the checkout, for boot jobs:
-sudo nano /Library/mac-wifi-troubleshooter/config.sh
-for stream in ping state event; do
-  sudo cp "/Library/mac-wifi-troubleshooter/launchd/no.datamind.wifi-$stream.plist" /Library/LaunchDaemons/
-  sudo chown root:wheel "/Library/LaunchDaemons/no.datamind.wifi-$stream.plist"
-  sudo chmod 644 "/Library/LaunchDaemons/no.datamind.wifi-$stream.plist"
-  sudo plutil -lint "/Library/LaunchDaemons/no.datamind.wifi-$stream.plist"
-  sudo launchctl bootstrap system "/Library/LaunchDaemons/no.datamind.wifi-$stream.plist"
-done
+sudo ./bin/install-launchd.sh
 ```
+
+The installer validates the plists, stops any existing jobs before restarting
+them, and sets the required ownership and permissions. It is safe to rerun:
+an existing installed `config.sh` is preserved, with a notice. Boot jobs read
+`/Library/mac-wifi-troubleshooter/config.sh`, **not the checkout's config**.
+Edit it with `sudo nano /Library/mac-wifi-troubleshooter/config.sh`.
 
 Jobs start immediately and at boot, and restart on exit (10-second throttle).
 The plists explicitly set `OUTPUT_DIR=/Library/Logs/mac-wifi-troubleshooter`.
@@ -129,12 +122,12 @@ After changing installed config, restart each job:
 Stop and uninstall (retains captured logs):
 
 ```sh
-for stream in ping state event; do
-  sudo launchctl bootout "system/no.datamind.wifi-$stream"
-  sudo rm "/Library/LaunchDaemons/no.datamind.wifi-$stream.plist"
-done
-sudo rm -R /Library/mac-wifi-troubleshooter
+sudo ./bin/uninstall-launchd.sh
 ```
+
+Run this from the checkout. Already-stopped jobs and missing plists are
+harmless. The install tree is removed, but captured CSVs in
+`/Library/Logs/mac-wifi-troubleshooter` are retained for hand-off.
 
 Stop manual collectors before enabling launchd and vice versa.
 
