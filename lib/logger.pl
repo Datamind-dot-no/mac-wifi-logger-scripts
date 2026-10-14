@@ -72,13 +72,16 @@ if ($mode eq 'merge') {
     $ENV{LC_ALL} = 'C';
     my $sort_pid = open(my $sort, '|-', '/usr/bin/sort', '-s', '-t', ',', '-k1,1', '-k2,2')
         or die "Cannot start sort: $!\n";
+    $child = $sort_pid;
     print csv(@header);
     STDOUT->flush();
     for my $path (@ARGV) {
+        last if $stop;
         open my $in, '<', $path or die "Cannot read $path: $!\n";
         my $first = <$in>;
         die "Wrong CSV schema in $path\n" unless defined($first) && $first eq csv(@header);
         while (my $line = <$in>) {
+            last if $stop;
             my @row = parse_csv($line);
             die "Invalid row in $path\n" unless @row == @header
                 && $row[0] =~ /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{6}Z$/;
@@ -86,7 +89,9 @@ if ($mode eq 'merge') {
         }
         close $in;
     }
-    close $sort or die "sort failed\n";
+    my $ok = close $sort;
+    $child = undef;
+    die "sort failed\n" unless $ok || $stop;
     exit 0;
 }
 
@@ -173,6 +178,8 @@ sub spawn {
     die "Cannot fork: $!\n" unless defined $pid;
     if (!$pid) {
         open STDIN, '<', '/dev/null' or die "Cannot open /dev/null: $!\n";
+        open STDERR, '>&', STDOUT or die "Cannot capture ping errors: $!\n"
+            if $mode eq 'ping';
         exec @cmd;
         die "Cannot execute $cmd[0]: $!\n";
     }
