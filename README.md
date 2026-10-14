@@ -75,29 +75,17 @@ not synthetic loss; use an awake Mac. Enable macOS automatic time sync.
 
 ## Start at boot with launchd
 
-The supplied **LaunchDaemons** run as root so wdutil and unified logs work
-without an interactive password. All installed scripts/config must be
-root-owned and not writable by regular users. From the repository:
-
-```sh
-sudo mkdir -p /Library/mac-wifi-troubleshooter /Library/Logs/mac-wifi-troubleshooter
-sudo cp -R bin lib launchd config.sh /Library/mac-wifi-troubleshooter/
-sudo chown -R root:wheel /Library/mac-wifi-troubleshooter /Library/Logs/mac-wifi-troubleshooter
-sudo chmod -R go-w /Library/mac-wifi-troubleshooter
-sudo chmod 700 /Library/Logs/mac-wifi-troubleshooter
-# Edit the installed config, not the checkout, for boot jobs:
-sudo nano /Library/mac-wifi-troubleshooter/config.sh
-for stream in ping state event; do
-  sudo cp "/Library/mac-wifi-troubleshooter/launchd/no.datamind.wifi-$stream.plist" /Library/LaunchDaemons/
-  sudo chown root:wheel "/Library/LaunchDaemons/no.datamind.wifi-$stream.plist"
-  sudo chmod 644 "/Library/LaunchDaemons/no.datamind.wifi-$stream.plist"
-  sudo plutil -lint "/Library/LaunchDaemons/no.datamind.wifi-$stream.plist"
-  sudo launchctl bootstrap system "/Library/LaunchDaemons/no.datamind.wifi-$stream.plist"
-done
-```
+The supplied **LaunchDaemons** run as root so `wdutil` and unified logs work
+without an interactive password. From the repository, install and start them
+with `sudo ./bin/install-launchd.sh`. This copies root-owned, non-user-writable
+files into `/Library/mac-wifi-troubleshooter`, installs and bootstraps the
+LaunchDaemons, and starts collection immediately and at boot. Edit the installed
+`/Library/mac-wifi-troubleshooter/config.sh` to change collector settings.
+Installation and removal require sudo.
 
 Jobs start immediately and at boot, and restart on exit (10-second throttle).
-The plists explicitly set `OUTPUT_DIR=/Library/Logs/mac-wifi-troubleshooter`.
+Logs are written to `/Library/Logs/mac-wifi-troubleshooter`; the plists
+explicitly set `OUTPUT_DIR` there.
 No unrotated stderr files are created; launchd diagnostics go to macOS logs.
 Collector warnings/errors are sent through `/usr/bin/logger` with the tag
 `mac-wifi-troubleshooter` when the supplied jobs set `WIFI_LAUNCHD=1`.
@@ -106,15 +94,8 @@ If a job keeps restarting, run its command in a terminal to see the error.
 After changing installed config, restart each job:
 `sudo launchctl kickstart -k system/no.datamind.wifi-state` (also ping/event).
 
-Stop and uninstall (retains captured logs):
-
-```sh
-for stream in ping state event; do
-  sudo launchctl bootout "system/no.datamind.wifi-$stream"
-  sudo rm "/Library/LaunchDaemons/no.datamind.wifi-$stream.plist"
-done
-sudo rm -R /Library/mac-wifi-troubleshooter
-```
+Stop and uninstall with `sudo ./bin/uninstall-launchd.sh`. It removes the
+installed scripts and plists but **retains captured logs** for hand-off.
 
 Stop manual collectors before enabling launchd and vice versa.
 
