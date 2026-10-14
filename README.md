@@ -45,7 +45,25 @@ sudo ./bin/wifi-state-sampler.sh
 sudo ./bin/wifi-event-logger.sh
 ```
 
+**The collectors write CSV files to `$OUTPUT_DIR` and print nothing to
+stdout.** A silent terminal is normal and does not mean the tool has failed or
+stalled. By default the files are written to
+`~/Library/Logs/mac-wifi-troubleshooter/`. Verify collection is actually
+happening from a second terminal:
+
+```sh
+ls -la ~/Library/Logs/mac-wifi-troubleshooter/
+tail -f ~/Library/Logs/mac-wifi-troubleshooter/*.csv
+```
+
+Expect a header row plus roughly one ping row per second. If the directory is
+empty or missing, check that `route -n get default` returns a gateway and that
+the collector process is still running (`pgrep -fl logger.pl`).
+
 Use the same explicit `OUTPUT_DIR` for all three: sudo may change HOME.
+Because of this, the privileged state and event collectors can write to a
+**different directory** than the unprivileged ping logger — if you find ping
+data but no state or event data under `~/Library/Logs/...`, this is why.
 For example, first set `OUTPUT_DIR` in `config.sh` to
 `/Library/Logs/mac-wifi-troubleshooter`, or prefix each invocation with
 `env OUTPUT_DIR=/absolute/path` (after `sudo` for privileged invocations).
