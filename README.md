@@ -138,8 +138,24 @@ CSV files to a separate directory. Do not merge a file currently being written,
 and do not put the output CSV among the inputs.
 
 ```sh
-sudo /Library/mac-wifi-troubleshooter/bin/merge-logs.sh \
-  /Library/Logs/mac-wifi-troubleshooter/*.csv > /tmp/office-wifi-merged.csv
+sudo sh -c "/Library/mac-wifi-troubleshooter/bin/merge-logs.sh \
+  /Library/Logs/mac-wifi-troubleshooter/*.csv > /tmp/office-wifi-merged.csv"
+```
+
+The `sh -c` wrapper is what makes this work: it moves the `*.csv` glob
+expansion and the `>` redirection into the root shell. Without it both are
+handled by your own shell before `sudo` runs, and since
+`/Library/Logs/mac-wifi-troubleshooter` is root-owned and mode 700 an
+unprivileged shell matches no files — zsh then aborts with
+`no matches found`. Check root can see the files with
+`sudo ls -la /Library/Logs/mac-wifi-troubleshooter/`.
+
+For logs written to your home directory by manually run collectors, no `sudo`
+or wrapper is needed:
+
+```sh
+./bin/merge-logs.sh ~/Library/Logs/mac-wifi-troubleshooter/*.csv \
+  > /tmp/office-wifi-merged.csv
 ```
 
 The merger validates the schema and orders rows by UTC timestamp then machine.
