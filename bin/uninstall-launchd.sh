@@ -13,7 +13,7 @@ source "$ROOT/config.sh"
 
 failed=0
 for stream in ping state event; do
-    job="system/no.datamind.wifi-$stream"
+    job="system/no.datamind.wifi-logger-$stream"
     if launchctl bootout "$job"; then
         :
     else
@@ -25,11 +25,11 @@ for stream in ping state event; do
             continue
         fi
     fi
-    rm -f "/Library/LaunchDaemons/no.datamind.wifi-$stream.plist"
+    rm -f "/Library/LaunchDaemons/no.datamind.wifi-logger-$stream.plist"
 done
 if [ "$failed" -ne 0 ]; then
     echo "Install tree retained because some jobs could not be stopped. Resolve the errors and rerun this script." >&2
     exit 1
 fi
-rm -Rf /Library/mac-wifi-troubleshooter
-echo "Jobs uninstalled. Captured logs retained in /Library/Logs/mac-wifi-troubleshooter."
+rm -Rf /Library/mac-wifi-logger-scripts
+echo "Jobs uninstalled. Captured logs retained in /Library/Logs/mac-wifi-logger-scripts."

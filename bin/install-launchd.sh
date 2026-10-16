@@ -11,12 +11,12 @@ fi
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 source "$ROOT/config.sh"
 
-INSTALL_DIR=/Library/mac-wifi-troubleshooter
-LOG_DIR=/Library/Logs/mac-wifi-troubleshooter
+INSTALL_DIR=/Library/mac-wifi-logger-scripts
+LOG_DIR=/Library/Logs/mac-wifi-logger-scripts
 DAEMON_DIR=/Library/LaunchDaemons
 
 for stream in ping state event; do
-    plist="$ROOT/launchd/no.datamind.wifi-$stream.plist"
+    plist="$ROOT/launchd/no.datamind.wifi-logger-$stream.plist"
     if [ ! -f "$plist" ]; then
         echo "Missing plist: $plist. Restore it in the checkout and retry." >&2
         exit 1
@@ -28,7 +28,7 @@ for stream in ping state event; do
 done
 
 for stream in ping state event; do
-    job="system/no.datamind.wifi-$stream"
+    job="system/no.datamind.wifi-logger-$stream"
     if launchctl bootout "$job"; then
         :
     else
@@ -53,8 +53,8 @@ chmod -R go-w "$INSTALL_DIR"
 chmod 700 "$LOG_DIR"
 
 for stream in ping state event; do
-    plist="$DAEMON_DIR/no.datamind.wifi-$stream.plist"
-    cp "$INSTALL_DIR/launchd/no.datamind.wifi-$stream.plist" "$plist"
+    plist="$DAEMON_DIR/no.datamind.wifi-logger-$stream.plist"
+    cp "$INSTALL_DIR/launchd/no.datamind.wifi-logger-$stream.plist" "$plist"
     chown root:wheel "$plist"
     chmod 644 "$plist"
     if ! plutil -lint "$plist"; then
@@ -63,9 +63,9 @@ for stream in ping state event; do
     fi
 done
 for stream in ping state event; do
-    plist="$DAEMON_DIR/no.datamind.wifi-$stream.plist"
+    plist="$DAEMON_DIR/no.datamind.wifi-logger-$stream.plist"
     if ! launchctl bootstrap system "$plist"; then
-        echo "Cannot bootstrap $plist. Check sudo launchctl print system/no.datamind.wifi-$stream and rerun this script." >&2
+        echo "Cannot bootstrap $plist. Check sudo launchctl print system/no.datamind.wifi-logger-$stream and rerun this script." >&2
         exit 1
     fi
 done
