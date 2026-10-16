@@ -1,4 +1,4 @@
-# Mac Wi-Fi troubleshooter
+# Mac Wi-Fi logger (scripts)
 
 > **Status: Pre-alpha** — Testing has only just started; the tool and its output are not yet validated or confirmed to be working as intended.
 
@@ -6,6 +6,25 @@ Lightweight, continuous gateway ping, Wi-Fi association sampling, and macOS
 Wi-Fi events on a shared UTC timeline. Run on 2–3 affected office Macs for
 several days, then give the merged CSV to the Wi-Fi infrastructure team.
 No GUI, `airport`, third-party packages, or network uploads.
+
+This repository is the dependency-free shell/Perl implementation: no compiled
+binary, no third-party packages, and nothing to sign or notarise. A companion
+Swift tool is planned for data the script-only approach cannot reach.
+
+## Known limitation: SSID/BSSID redaction
+
+**The script-only approach cannot reliably obtain SSID/BSSID, even with
+`sudo`.** macOS keys the Location Services TCC grant to the **calling binary**
+that accesses CoreWLAN, not the shell script invoking `wdutil` or
+`system_profiler`. The script is not a grantable app identity, so these values
+can come back `<redacted>` regardless of privilege level. Running as root
+does **not** work around this, and neither does any flag this toolkit could
+add. This is the specific gap the planned Swift helper is intended to close.
+
+Blank fields and `association=unknown` are honest missing data, **not evidence
+of a disconnect**. Confirm BSSID is populated on the affected Macs; if
+unavailable, the Wi-Fi team must use controller/AP logs to identify roams
+and AP changes.
 
 ## Requirements and configuration
 
@@ -22,7 +41,7 @@ Edit `config.sh`, or export overrides:
 | --- | --- | --- |
 | `PING_INTERVAL` | `1` | Seconds between ICMP requests |
 | `SAMPLE_INTERVAL` | `5` | Seconds between Wi-Fi sample starts |
-| `OUTPUT_DIR` | `$HOME/Library/Logs/mac-wifi-troubleshooter` | Absolute output path |
+| `OUTPUT_DIR` | `$HOME/Library/Logs/mac-wifi-logger-scripts` | Absolute output path |
 | `RETENTION_DAYS` | `7` | Rotated file retention in days |
 | `MAX_LOG_BYTES` | `10485760` | Rotate each stream at approximately 10 MiB |
 | `MACHINE_ID` | hostname | Stable machine/asset identifier for pooling logs |
@@ -48,12 +67,12 @@ sudo ./bin/wifi-event-logger.sh
 **The collectors write CSV files to `$OUTPUT_DIR` and print nothing to
 stdout.** A silent terminal is normal and does not mean the tool has failed or
 stalled. By default the files are written to
-`~/Library/Logs/mac-wifi-troubleshooter/`. Verify collection is actually
+`~/Library/Logs/mac-wifi-logger-scripts/`. Verify collection is actually
 happening from a second terminal:
 
 ```sh
-ls -la ~/Library/Logs/mac-wifi-troubleshooter/
-tail -f ~/Library/Logs/mac-wifi-troubleshooter/*.csv
+ls -la ~/Library/Logs/mac-wifi-logger-scripts/
+tail -f ~/Library/Logs/mac-wifi-logger-scripts/*.csv
 ```
 
 Expect a header row plus roughly one ping row per second. If the directory is
@@ -65,7 +84,7 @@ Because of this, the privileged state and event collectors can write to a
 **different directory** than the unprivileged ping logger — if you find ping
 data but no state or event data under `~/Library/Logs/...`, this is why.
 For example, first set `OUTPUT_DIR` in `config.sh` to
-`/Library/Logs/mac-wifi-troubleshooter`, or prefix each invocation with
+`/Library/Logs/mac-wifi-logger-scripts`, or prefix each invocation with
 `env OUTPUT_DIR=/absolute/path` (after `sudo` for privileged invocations).
 Use a fresh directory or consistent ownership when switching to/from root.
 Ctrl-C or SIGTERM stops the collector and its child process; records are
@@ -77,12 +96,6 @@ may lack BSSID, and may take longer than the sampling interval: the sampler
 never overlaps commands or invents missed samples. Each command has a
 20-second timeout. Test a short capture before multi-day deployment.
 
-**macOS privacy restrictions can redact SSID/BSSID even with sudo.** Location
-Services/terminal permissions and OS version affect availability. Root does
-not guarantee BSSID access, and this toolkit cannot bypass privacy controls.
-Blank fields and `association=unknown` are honest missing data, **not a
-disconnect**. Confirm BSSID is populated on the affected Macs; if unavailable,
-the Wi-Fi team must use controller/event logs to identify AP changes.
 `log stream` also redacts private messages. It captures info/debug events
 actually emitted by the OS, including reason codes when available; it cannot
 recover suppressed/private events.
@@ -106,18 +119,18 @@ sudo ./bin/install-launchd.sh
 The installer validates the plists, stops any existing jobs before restarting
 them, and sets the required ownership and permissions. It is safe to rerun:
 an existing installed `config.sh` is preserved, with a notice. Boot jobs read
-`/Library/mac-wifi-troubleshooter/config.sh`, **not the checkout's config**.
-Edit it with `sudo nano /Library/mac-wifi-troubleshooter/config.sh`.
+`/Library/mac-wifi-logger-scripts/config.sh`, **not the checkout's config**.
+Edit it with `sudo nano /Library/mac-wifi-logger-scripts/config.sh`.
 
 Jobs start immediately and at boot, and restart on exit (10-second throttle).
-The plists explicitly set `OUTPUT_DIR=/Library/Logs/mac-wifi-troubleshooter`.
+The plists explicitly set `OUTPUT_DIR=/Library/Logs/mac-wifi-logger-scripts`.
 No unrotated stderr files are created; launchd diagnostics go to macOS logs.
 Collector warnings/errors are sent through `/usr/bin/logger` with the tag
-`mac-wifi-troubleshooter` when the supplied jobs set `WIFI_LAUNCHD=1`.
-Inspect status with `sudo launchctl print system/no.datamind.wifi-state`.
+`mac-wifi-logger-scripts` when the supplied jobs set `WIFI_LAUNCHD=1`.
+Inspect status with `sudo launchctl print system/no.datamind.wifi-logger-state`.
 If a job keeps restarting, run its command in a terminal to see the error.
 After changing installed config, restart each job:
-`sudo launchctl kickstart -k system/no.datamind.wifi-state` (also ping/event).
+`sudo launchctl kickstart -k system/no.datamind.wifi-logger-state` (also ping/event).
 
 Stop and uninstall (retains captured logs):
 
@@ -127,7 +140,7 @@ sudo ./bin/uninstall-launchd.sh
 
 Run this from the checkout. Already-stopped jobs and missing plists are
 harmless. The install tree is removed, but captured CSVs in
-`/Library/Logs/mac-wifi-troubleshooter` are retained for hand-off.
+`/Library/Logs/mac-wifi-logger-scripts` are retained for hand-off.
 
 Stop manual collectors before enabling launchd and vice versa.
 
@@ -138,23 +151,23 @@ CSV files to a separate directory. Do not merge a file currently being written,
 and do not put the output CSV among the inputs.
 
 ```sh
-sudo sh -c "/Library/mac-wifi-troubleshooter/bin/merge-logs.sh \
-  /Library/Logs/mac-wifi-troubleshooter/*.csv > /tmp/office-wifi-merged.csv"
+sudo sh -c "/Library/mac-wifi-logger-scripts/bin/merge-logs.sh \
+  /Library/Logs/mac-wifi-logger-scripts/*.csv > /tmp/office-wifi-merged.csv"
 ```
 
 The `sh -c` wrapper is what makes this work: it moves the `*.csv` glob
 expansion and the `>` redirection into the root shell. Without it both are
 handled by your own shell before `sudo` runs, and since
-`/Library/Logs/mac-wifi-troubleshooter` is root-owned and mode 700 an
+`/Library/Logs/mac-wifi-logger-scripts` is root-owned and mode 700 an
 unprivileged shell matches no files — zsh then aborts with
 `no matches found`. Check root can see the files with
-`sudo ls -la /Library/Logs/mac-wifi-troubleshooter/`.
+`sudo ls -la /Library/Logs/mac-wifi-logger-scripts/`.
 
 For logs written to your home directory by manually run collectors, no `sudo`
 or wrapper is needed:
 
 ```sh
-./bin/merge-logs.sh ~/Library/Logs/mac-wifi-troubleshooter/*.csv \
+./bin/merge-logs.sh ~/Library/Logs/mac-wifi-logger-scripts/*.csv \
   > /tmp/office-wifi-merged.csv
 ```
 

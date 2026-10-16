@@ -19,7 +19,7 @@ sub system_diagnostic {
     my ($message) = @_;
     return unless $ENV{WIFI_LAUNCHD} && -x '/usr/bin/logger';
     local $SIG{__WARN__};
-    system('/usr/bin/logger', '-t', 'mac-wifi-troubleshooter', $message);
+    system('/usr/bin/logger', '-t', 'mac-wifi-logger-scripts', $message);
 }
 $SIG{__WARN__} = sub { system_diagnostic($_[0]); print STDERR $_[0]; };
 $SIG{__DIE__} = sub { system_diagnostic($_[0]) unless $^S; };
